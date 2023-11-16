@@ -1,4 +1,5 @@
 import type { Plugin, Transformer } from 'unified';
+import type { Parent } from 'unist';
 import type { MDASTNode } from '../common/types';
 import type { InferLanguageOptions } from './types';
 
@@ -17,17 +18,21 @@ const transformNode = (node: MDASTNode, { extensions }: TransformNodeOptions) =>
     node.lang = extensions[ext] ?? ext;
     node.meta = node.meta ? `${node.meta} ${matchStr}` : matchStr;
   }
-}
+};
 
-const attacher: Plugin = (options: InferLanguageOptions) => {
+const isMDASTNode = (node: MDASTNode | Parent): node is MDASTNode => {
+  return 'value' in node; // Assuming 'value' is a property unique to MDASTNode
+};
+
+const attacher: Plugin = ((options: InferLanguageOptions) => {
   const extensions = options?.extensions ?? {};
 
-  const transformer: Transformer = (node: MDASTNode) => {
-    if (node.type === 'code') {
+  const transformer: Transformer = (node: MDASTNode | Parent) => {
+    if (isMDASTNode(node) && node.type === 'code') {
       transformNode(node, { extensions });
       return undefined;
     }
-    if (Array.isArray(node.children)) {
+    if (isMDASTNode(node) && Array.isArray(node.children)) {
       for (const child of node.children) {
         transformer(child, undefined, undefined);
       }
@@ -36,6 +41,6 @@ const attacher: Plugin = (options: InferLanguageOptions) => {
   };
 
   return transformer;
-};
+}) as Plugin;
 
 export default attacher;
